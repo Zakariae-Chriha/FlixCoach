@@ -1,0 +1,104 @@
+const express = require('express');
+const router = express.Router();
+const protect = require('../middleware/auth');
+const Coach = require('../models/Coach');
+const Booking = require('../models/Booking');
+
+function coachOnly(req, res, next) {
+  if (req.user?.role !== 'coach' && req.user?.role !== 'admin') return res.status(403).json({ success: false, message: 'Coach access only' });
+  next();
+}
+
+// GET /api/coach-dashboard/profile
+router.get('/profile', protect, coachOnly, async (req, res) => {
+  try {
+    const coach = await Coach.findOne({ user: req.user._id });
+    if (!coach) return res.status(404).json({ success: false, message: 'Coach profile not found' });
+    res.json({ success: true, coach });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/coach-dashboard/bookings
+router.get('/bookings', protect, coachOnly, async (req, res) => {
+  try {
+    const coach = await Coach.findOne({ user: req.user._id });
+    if (!coach) return res.status(404).json({ success: false, message: 'Coach not found' });
+
+    const bookings = await Booking.find({ coach: coach._id })
+      .populate('client', 'name email')
+      .sort({ date: 1 });
+    res.json({ success: true, bookings });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/coach-dashboard/stats
+router.get('/stats', protect, coachOnly, async (req, res) => {
+  try {
+    const coach = await Coach.findOne({ user: req.user._id });
+    if (!coach) return res.status(404).json({ success: false, message: 'Coach not found' });
+
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+    const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + 7);
+
+    const [todayBookings, upcomingBookings, totalCompleted, totalEarnings] = await Promise.all([
+      Booking.find({ coach: coach._id, date: { $gte: today, $lt: tomorrow }, status: { $in: ['confirmed', 'pending'] } })
+        .populate('client', 'name email'),
+      Booking.find({ coach: coach._id, date: { $gte: tomorrow, $lte: weekEnd }, status: { $in: ['confirmed', 'pending'] } })
+        .populate('client', 'name email').sort({ date: 1 }),
+      Booking.countDocuments({ coach: coach._id, status: 'completed' }),
+      Booking.aggregate([
+        { $match: { coach: coach._id, status: 'completed' } },
+        { $group: { _id: null, total: { $sum: '$price' } } },
+      ]),
+    ]);
+
+    res.json({
+      success: true,
+      coach,
+      todayBookings,
+      upcomingBookings,
+      totalCompleted,
+      totalEarnings: totalEarnings[0]?.total || 0,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PATCH /api/coach-dashboard/bookings/:id — confirm or cancel
+router.patch('/bookings/:id', protect, coachOnly, async (req, res) => {
+  try {
+    const coach = await Coach.findOne({ user: req.user._id });
+    const booking = await Booking.findOne({ _id: req.params.id, coach: coach._id });
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+
+    booking.status = req.body.status;
+    if (req.body.coachNotes) booking.coachNotes = req.body.coachNotes;
+    await booking.save();
+
+    res.json({ success: true, booking });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PATCH /api/coach-dashboard/availability — update weekly schedule
+router.patch('/availability', protect, coachOnly, async (req, res) => {
+  try {
+    const coach = await Coach.findOneAndUpdate(
+      { user: req.user._id },
+      { availability: req.body.availability },
+      { new: true }
+    );
+    res.json({ success: true, availability: coach.availability });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+module.exports = router;

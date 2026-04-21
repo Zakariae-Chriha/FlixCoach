@@ -1,0 +1,25 @@
+User-agent: *
+Allow: /
+Allow: /coaches
+Allow: /coach/apply
+Allow: /pricing
+Allow: /impressum
+Allow: /datenschutz
+
+Disallow: /dashboard
+Disallow: /chat
+Disallow: /training
+Disallow: /nutrition
+Disallow: /food-log
+Disallow: /sleep
+Disallow: /mental
+Disallow: /progress
+Disallow: /reports
+Disallow: /community
+Disallow: /activities
+Disallow: /admin
+Disallow: /coach-dashboard
+Disallow: /onboarding
+Disallow: /api/
+
+Sitemap: https://www.flixcoach.de/sitemap.xml
