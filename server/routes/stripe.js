@@ -1,7 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const protect = require('../middleware/auth');
+
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? require('stripe')(process.env.STRIPE_SECRET_KEY)
+  : null;
 const User = require('../models/User');
 
 const PLANS = {
@@ -36,6 +39,7 @@ router.get('/subscription', protect, async (req, res) => {
 
 /* POST /api/stripe/create-checkout — start Stripe Checkout */
 router.post('/create-checkout', protect, async (req, res) => {
+  if (!stripe) return res.status(503).json({ success: false, message: 'Payments not configured yet.' });
   const { plan } = req.body;
   if (!PLANS[plan]) return res.status(400).json({ success: false, message: 'Invalid plan' });
 
@@ -77,6 +81,7 @@ router.post('/create-checkout', protect, async (req, res) => {
 
 /* POST /api/stripe/create-portal — manage existing subscription */
 router.post('/create-portal', protect, async (req, res) => {
+  if (!stripe) return res.status(503).json({ success: false, message: 'Payments not configured yet.' });
   try {
     const user = await User.findById(req.user._id);
     const customerId = user.subscription?.stripeCustomerId;
