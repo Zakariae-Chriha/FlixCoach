@@ -434,9 +434,15 @@ router.get('/admin/commission', adminAuth, async (req, res) => {
           sessionCount:    { $sum: 1 },
         }},
       ]);
-      const data = agg[0] || { totalRevenue: 0, totalCommission: 0, totalPayout: 0, sessionCount: 0 };
+      const raw = agg[0] || {};
+      const data = {
+        totalRevenue:    raw.totalRevenue    || 0,
+        totalCommission: raw.totalCommission || 0,
+        totalPayout:     raw.totalPayout     || 0,
+        sessionCount:    raw.sessionCount    || 0,
+      };
       return {
-        _id: coach._id,
+        _id: coach._id.toString(),
         fullName: coach.fullName,
         email: coach.email,
         commissionRate: coach.commissionRate,
