@@ -728,11 +728,13 @@ export default function GroupActivities() {
                 <div className="text-white/50 text-xs">{s.label}</div>
               </div>
             ))}
-            <button
-              onClick={() => setShowCreate(true)}
-              className="ml-auto flex items-center gap-2 bg-gradient-to-r from-orange-500 to-rose-500 text-white font-black px-5 py-2.5 rounded-xl shadow-lg shadow-orange-900/40 hover:scale-105 transition-all text-sm self-center">
-              <Plus size={15} /> Create
-            </button>
+            {['coach', 'admin'].includes(user?.role) && (
+              <button
+                onClick={() => setShowCreate(true)}
+                className="ml-auto flex items-center gap-2 bg-gradient-to-r from-orange-500 to-rose-500 text-white font-black px-5 py-2.5 rounded-xl shadow-lg shadow-orange-900/40 hover:scale-105 transition-all text-sm self-center">
+                <Plus size={15} /> Create
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -843,10 +845,12 @@ export default function GroupActivities() {
                   ? 'Try different keywords or clear your filters'
                   : 'Be the first to create a group activity in your area!'}
             </p>
-            <button onClick={() => setShowCreate(true)}
-              className="mt-5 flex items-center gap-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold px-6 py-3 rounded-xl hover:opacity-90 transition-all shadow-lg">
-              <Plus size={16} /> Create Activity
-            </button>
+            {['coach', 'admin'].includes(user?.role) && (
+              <button onClick={() => setShowCreate(true)}
+                className="mt-5 flex items-center gap-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold px-6 py-3 rounded-xl hover:opacity-90 transition-all shadow-lg">
+                <Plus size={16} /> Create Activity
+              </button>
+            )}
           </div>
         ) : (
           filtered.map(a => (
@@ -855,12 +859,14 @@ export default function GroupActivities() {
         )}
       </div>
 
-      {/* Floating create button on mobile */}
-      <button
-        onClick={() => setShowCreate(true)}
-        className="fixed bottom-6 right-6 lg:hidden w-14 h-14 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-2xl shadow-rose-900/40 flex items-center justify-center hover:scale-110 transition-all z-40">
-        <Plus size={24} />
-      </button>
+      {/* Floating create button on mobile — coach/admin only */}
+      {['coach', 'admin'].includes(user?.role) && (
+        <button
+          onClick={() => setShowCreate(true)}
+          className="fixed bottom-6 right-6 lg:hidden w-14 h-14 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-2xl shadow-rose-900/40 flex items-center justify-center hover:scale-110 transition-all z-40">
+          <Plus size={24} />
+        </button>
+      )}
 
       {showCreate && (
         <CreateActivityModal

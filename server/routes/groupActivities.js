@@ -41,8 +41,11 @@ router.get('/:id', protect, async (req, res) => {
   }
 });
 
-// POST /api/activities — create activity
+// POST /api/activities — create activity (coach/admin only)
 router.post('/', protect, async (req, res) => {
+  if (!['coach', 'admin'].includes(req.user.role)) {
+    return res.status(403).json({ success: false, message: 'Only coaches and admins can create activities.' });
+  }
   try {
     const { name, category, description, whatToBring, location, date, startTime,
       duration, maxParticipants, level, cost, isFree, visibility } = req.body;

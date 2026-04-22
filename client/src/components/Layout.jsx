@@ -8,7 +8,7 @@ import {
 import { useState } from 'react';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 
-const navSections = [
+const userNavSections = [
   {
     label: 'COACHING',
     items: [
@@ -31,7 +31,7 @@ const navSections = [
   {
     label: 'COMMUNITY',
     items: [
-      { to: '/community',   icon: Flame,       label: 'Community Feed', color: 'text-orange-400' },
+      { to: '/community',   icon: Flame,        label: 'Community Feed',   color: 'text-orange-400' },
       { to: '/activities',  icon: CalendarDays, label: 'Group Activities', color: 'text-pink-400' },
     ],
   },
@@ -46,6 +46,23 @@ const navSections = [
     label: 'ACCOUNT',
     items: [
       { to: '/pricing', icon: Crown, label: 'Upgrade Plan', color: 'text-yellow-400' },
+    ],
+  },
+];
+
+const coachNavSections = [
+  {
+    label: 'COACH',
+    items: [
+      { to: '/coach-dashboard', icon: LayoutDashboard, label: 'Coach Dashboard', color: 'text-green-400' },
+      { to: '/chat',            icon: MessageSquare,   label: 'AI Coach',         color: 'text-purple-400' },
+    ],
+  },
+  {
+    label: 'COMMUNITY',
+    items: [
+      { to: '/community',  icon: Flame,        label: 'Community Feed',   color: 'text-orange-400' },
+      { to: '/activities', icon: CalendarDays, label: 'Group Activities', color: 'text-pink-400' },
     ],
   },
 ];
@@ -104,7 +121,7 @@ export default function Layout() {
 
       {/* Nav sections */}
       <nav className="flex-1 px-3 space-y-4 overflow-y-auto py-2">
-        {navSections.map(({ label, items }) => (
+        {(user?.role === 'coach' ? coachNavSections : userNavSections).map(({ label, items }) => (
           <div key={label}>
             <p className="text-xs font-bold text-gray-600 tracking-widest px-3 mb-1.5">{label}</p>
             <div className="space-y-0.5">
@@ -135,21 +152,9 @@ export default function Layout() {
         ))}
       </nav>
 
-      {/* Special role links */}
-      <div className="px-3 pb-2 space-y-1">
-        {user?.role === 'coach' && (
-          <NavLink to="/coach-dashboard"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all
-              ${isActive ? 'bg-green-900/30 text-green-300 border border-green-800/30' : 'bg-green-900/10 text-green-400 hover:bg-green-900/25 border border-green-900/20'}`}
-            onClick={() => setSidebarOpen(false)}>
-            <div className="w-7 h-7 rounded-lg bg-green-900/40 flex items-center justify-center">
-              <Zap size={14} className="text-green-400" />
-            </div>
-            Coach Dashboard
-          </NavLink>
-        )}
-        {user?.role === 'admin' && (
+      {/* Admin link */}
+      {user?.role === 'admin' && (
+        <div className="px-3 pb-2">
           <NavLink to="/admin"
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all
@@ -160,8 +165,8 @@ export default function Layout() {
             </div>
             Admin Panel
           </NavLink>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Logout */}
       <div className="p-3 border-t border-white/5">

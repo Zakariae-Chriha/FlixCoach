@@ -70,6 +70,59 @@ router.get('/stats', protect, coachOnly, async (req, res) => {
   }
 });
 
+// GET /api/coach-dashboard/clients — client progress overview
+router.get('/clients', protect, coachOnly, async (req, res) => {
+  try {
+    const coach = await Coach.findOne({ user: req.user._id });
+    if (!coach) return res.status(404).json({ success: false, message: 'Coach not found' });
+
+    const bookings = await Booking.find({ coach: coach._id })
+      .populate('client', 'name email')
+      .sort({ date: -1 });
+
+    // Group by client
+    const clientMap = {};
+    bookings.forEach(b => {
+      if (!b.client) return;
+      const id = b.client._id.toString();
+      if (!clientMap[id]) {
+        clientMap[id] = {
+          id,
+          name: b.client.name,
+          email: b.client.email,
+          total: 0,
+          completed: 0,
+          cancelled: 0,
+          lastSession: null,
+          nextSession: null,
+          totalSpent: 0,
+        };
+      }
+      const c = clientMap[id];
+      c.total++;
+      if (b.status === 'completed') { c.completed++; c.totalSpent += b.price || 0; }
+      if (b.status === 'cancelled') c.cancelled++;
+      const bDate = new Date(b.date);
+      const now = new Date();
+      if (bDate < now && b.status === 'completed') {
+        if (!c.lastSession || bDate > new Date(c.lastSession)) c.lastSession = b.date;
+      }
+      if (bDate >= now && ['confirmed', 'pending'].includes(b.status)) {
+        if (!c.nextSession || bDate < new Date(c.nextSession)) c.nextSession = b.date;
+      }
+    });
+
+    const clients = Object.values(clientMap).map(c => ({
+      ...c,
+      progressPct: c.total > 0 ? Math.round((c.completed / c.total) * 100) : 0,
+    })).sort((a, b) => b.total - a.total);
+
+    res.json({ success: true, clients });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // PATCH /api/coach-dashboard/bookings/:id — confirm or cancel
 router.patch('/bookings/:id', protect, coachOnly, async (req, res) => {
   try {

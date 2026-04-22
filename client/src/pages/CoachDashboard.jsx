@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { API_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -36,6 +36,8 @@ export default function CoachDashboard() {
   const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' });
   const [pwLoading, setPwLoading] = useState(false);
   const [showPw, setShowPw] = useState({ current: false, newPw: false, confirm: false });
+  const [clients, setClients] = useState([]);
+  const [clientsLoading, setClientsLoading] = useState(false);
 
   useEffect(() => {
     if (user?.role !== 'coach') { navigate('/dashboard'); return; }
@@ -82,6 +84,79 @@ export default function CoachDashboard() {
   };
 
   if (user?.role !== 'coach') return null;
+
+function ClientsTab({ clients, setClients, loading, setLoading }) {
+  useEffect(() => {
+    setLoading(true);
+    api.get('/coach-dashboard/clients')
+      .then(r => setClients(r.data.clients))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="flex justify-center py-10"><div className="w-8 h-8 rounded-full border-4 border-dark-600 border-t-primary-500 animate-spin" /></div>;
+
+  if (!clients.length) return (
+    <div className="glass-card p-10 text-center">
+      <Users size={40} className="text-gray-600 mx-auto mb-3" />
+      <p className="text-gray-400">No clients yet. Share your profile to get bookings!</p>
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-gray-400">{clients.length} client{clients.length !== 1 ? 's' : ''} total</p>
+      {clients.map(c => (
+        <div key={c.id} className="glass-card p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-purple-700 flex items-center justify-center font-bold text-white flex-shrink-0">
+              {c.name?.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-white">{c.name}</p>
+              <p className="text-xs text-gray-400">{c.email}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xl font-black text-white">{c.progressPct}%</p>
+              <p className="text-xs text-gray-500">completion</p>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="w-full bg-dark-700 rounded-full h-2">
+            <div
+              className={`h-2 rounded-full transition-all ${c.progressPct >= 75 ? 'bg-green-500' : c.progressPct >= 40 ? 'bg-yellow-500' : 'bg-primary-500'}`}
+              style={{ width: `${c.progressPct}%` }}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 text-center text-xs">
+            <div className="bg-dark-700/50 rounded-lg p-2">
+              <p className="font-bold text-white">{c.total}</p>
+              <p className="text-gray-500">Total</p>
+            </div>
+            <div className="bg-green-900/20 rounded-lg p-2">
+              <p className="font-bold text-green-400">{c.completed}</p>
+              <p className="text-gray-500">Done</p>
+            </div>
+            <div className="bg-yellow-900/20 rounded-lg p-2">
+              <p className="font-bold text-yellow-400">{c.totalSpent}€</p>
+              <p className="text-gray-500">Spent</p>
+            </div>
+          </div>
+
+          {(c.lastSession || c.nextSession) && (
+            <div className="flex gap-3 text-xs text-gray-400">
+              {c.lastSession && <span>Last: {new Date(c.lastSession).toLocaleDateString('de-DE')}</span>}
+              {c.nextSession && <span className="text-primary-400">Next: {new Date(c.nextSession).toLocaleDateString('de-DE')}</span>}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
   if (loading) return (
     <div className="flex justify-center py-20">
       <div className="w-10 h-10 rounded-full border-4 border-dark-600 border-t-primary-500 animate-spin" />
@@ -193,6 +268,7 @@ export default function CoachDashboard() {
           { id: 'today', label: "Today", icon: Zap },
           { id: 'upcoming', label: 'This Week', icon: Calendar },
           { id: 'all', label: 'All Bookings', icon: Users },
+          { id: 'clients', label: 'Clients', icon: TrendingUp },
           { id: 'availability', label: 'My Schedule', icon: Clock },
           { id: 'security', label: 'Password', icon: Lock },
         ].map(({ id, label, icon: Icon }) => (
@@ -236,6 +312,11 @@ export default function CoachDashboard() {
             </div>
           ) : allBookings.map(b => <BookingCard key={b._id} booking={b} showActions />)}
         </div>
+      )}
+
+      {/* Clients Progress */}
+      {tab === 'clients' && (
+        <ClientsTab coachId={coach?._id} clients={clients} setClients={setClients} loading={clientsLoading} setLoading={setClientsLoading} />
       )}
 
       {/* Availability */}
