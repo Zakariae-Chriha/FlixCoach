@@ -386,13 +386,13 @@ router.delete('/admin/coaches/:id', adminAuth, async (req, res) => {
 // GET /api/coaches/admin/subscriptions — all users with their plan
 router.get('/admin/subscriptions', adminAuth, async (req, res) => {
   try {
-    const users = await User.find({ role: 'user' })
-      .select('name email subscription createdAt')
+    const users = await User.find({ role: { $in: ['user', 'coach'] } })
+      .select('name email role subscription createdAt')
       .sort({ createdAt: -1 });
     const counts = {
-      free:  await User.countDocuments({ role: 'user', 'subscription.plan': 'free' }),
-      pro:   await User.countDocuments({ role: 'user', 'subscription.plan': 'pro' }),
-      elite: await User.countDocuments({ role: 'user', 'subscription.plan': 'elite' }),
+      free:  await User.countDocuments({ 'subscription.plan': { $in: ['free', null, undefined] }, role: { $in: ['user', 'coach'] } }),
+      pro:   await User.countDocuments({ 'subscription.plan': 'pro' }),
+      elite: await User.countDocuments({ 'subscription.plan': 'elite' }),
     };
     res.json({ success: true, users, counts });
   } catch (err) {
