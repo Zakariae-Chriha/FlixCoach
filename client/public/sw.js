@@ -1,4 +1,4 @@
-const CACHE = 'flixcoach-v1';
+const CACHE = 'flixcoach-v3';
 const OFFLINE_URL = '/offline.html';
 
 const PRECACHE = ['/', '/offline.html', '/icons/icon-192.png', '/icons/icon-512.png', '/manifest.json'];
