@@ -167,6 +167,16 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/persona-a
 
   require('./jobs/weeklyReportJob').startWeeklyReportJob();
   require('./jobs/notificationJob').startNotificationJobs();
+
+  // Keep-alive ping every 14 min to prevent Render free tier sleep
+  if (process.env.NODE_ENV === 'production' && process.env.RENDER_EXTERNAL_URL) {
+    const https = require('https');
+    setInterval(() => {
+      https.get(`${process.env.RENDER_EXTERNAL_URL}/api/health`, () => {
+        console.log('[keep-alive] ping sent');
+      }).on('error', () => {});
+    }, 14 * 60 * 1000);
+  }
 })
 .catch((err) => {
   console.error('❌ MongoDB connection error:', err.message);
