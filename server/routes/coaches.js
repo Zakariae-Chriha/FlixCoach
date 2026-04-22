@@ -383,4 +383,95 @@ router.delete('/admin/coaches/:id', adminAuth, async (req, res) => {
   }
 });
 
+// GET /api/coaches/admin/subscriptions — all users with their plan
+router.get('/admin/subscriptions', adminAuth, async (req, res) => {
+  try {
+    const users = await User.find({ role: 'user' })
+      .select('name email subscription createdAt')
+      .sort({ createdAt: -1 });
+    const counts = {
+      free:  await User.countDocuments({ role: 'user', 'subscription.plan': 'free' }),
+      pro:   await User.countDocuments({ role: 'user', 'subscription.plan': 'pro' }),
+      elite: await User.countDocuments({ role: 'user', 'subscription.plan': 'elite' }),
+    };
+    res.json({ success: true, users, counts });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PATCH /api/coaches/admin/subscriptions/:userId — change user plan
+router.patch('/admin/subscriptions/:userId', adminAuth, async (req, res) => {
+  try {
+    const { plan } = req.body;
+    if (!['free', 'pro', 'elite'].includes(plan)) {
+      return res.status(400).json({ success: false, message: 'Invalid plan' });
+    }
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { 'subscription.plan': plan, 'subscription.status': plan === 'free' ? 'inactive' : 'active' },
+      { new: true }
+    ).select('name email subscription');
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/coaches/admin/commission — commission summary per coach
+router.get('/admin/commission', adminAuth, async (req, res) => {
+  try {
+    const coaches = await Coach.find({ isActive: true }).select('fullName email commissionRate totalSessions');
+
+    const summaries = await Promise.all(coaches.map(async (coach) => {
+      const agg = await Booking.aggregate([
+        { $match: { coach: coach._id, status: 'completed' } },
+        { $group: {
+          _id: null,
+          totalRevenue:    { $sum: '$price' },
+          totalCommission: { $sum: '$commission' },
+          totalPayout:     { $sum: '$coachPayout' },
+          sessionCount:    { $sum: 1 },
+        }},
+      ]);
+      const data = agg[0] || { totalRevenue: 0, totalCommission: 0, totalPayout: 0, sessionCount: 0 };
+      return {
+        _id: coach._id,
+        fullName: coach.fullName,
+        email: coach.email,
+        commissionRate: coach.commissionRate,
+        ...data,
+      };
+    }));
+
+    const totals = summaries.reduce((acc, s) => ({
+      totalRevenue:    acc.totalRevenue    + s.totalRevenue,
+      totalCommission: acc.totalCommission + s.totalCommission,
+      totalPayout:     acc.totalPayout     + s.totalPayout,
+    }), { totalRevenue: 0, totalCommission: 0, totalPayout: 0 });
+
+    res.json({ success: true, coaches: summaries, totals });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PATCH /api/coaches/admin/commission/:coachId — update commission rate
+router.patch('/admin/commission/:coachId', adminAuth, async (req, res) => {
+  try {
+    const { commissionRate } = req.body;
+    if (commissionRate < 0 || commissionRate > 100) {
+      return res.status(400).json({ success: false, message: 'Rate must be 0-100' });
+    }
+    const coach = await Coach.findByIdAndUpdate(
+      req.params.coachId,
+      { commissionRate },
+      { new: true }
+    ).select('fullName commissionRate');
+    res.json({ success: true, coach });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

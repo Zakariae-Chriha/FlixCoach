@@ -132,6 +132,14 @@ router.patch('/bookings/:id', protect, coachOnly, async (req, res) => {
 
     booking.status = req.body.status;
     if (req.body.coachNotes) booking.coachNotes = req.body.coachNotes;
+
+    if (req.body.status === 'completed' && booking.commission === 0) {
+      const rate = coach.commissionRate ?? 20;
+      booking.commissionPct = rate;
+      booking.commission    = Math.round(booking.price * rate) / 100;
+      booking.coachPayout   = booking.price - booking.commission;
+    }
+
     await booking.save();
 
     res.json({ success: true, booking });

@@ -13,7 +13,10 @@ const bookingSchema = new mongoose.Schema({
   location:    String, // address or online link
   notes:       String, // client notes
 
-  price:  { type: Number, required: true },
+  price:        { type: Number, required: true },
+  commission:   { type: Number, default: 0 },   // admin cut (€)
+  coachPayout:  { type: Number, default: 0 },   // coach receives (€)
+  commissionPct:{ type: Number, default: 0 },   // rate used at time of booking
   status: { type: String, enum: ['pending', 'confirmed', 'cancelled', 'completed'], default: 'pending' },
 
   // Post-session

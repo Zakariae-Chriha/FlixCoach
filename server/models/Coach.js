@@ -51,6 +51,9 @@ const coachSchema = new mongoose.Schema({
   avgRating:      { type: Number, default: 0 },
   totalReviews:   { type: Number, default: 0 },
 
+  // Commission
+  commissionRate: { type: Number, default: 20 }, // admin takes X% of each session
+
   // Status
   isActive:  { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
