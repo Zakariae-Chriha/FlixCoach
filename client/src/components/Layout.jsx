@@ -7,62 +7,64 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from './LanguageSwitcher';
 
-const userNavSections = [
+const getUserNavSections = (t) => [
   {
     label: 'COACHING',
     items: [
-      { to: '/dashboard',       icon: LayoutDashboard, label: 'Dashboard',     color: 'text-primary-400' },
-      { to: '/chat',            icon: MessageSquare,   label: 'AI Coach',      color: 'text-purple-400' },
-      { to: '/coaches',         icon: Users,           label: 'Find a Coach',  color: 'text-blue-400' },
-      { to: '/coach-secretary', icon: Zap,             label: 'AI Secretary',  color: 'text-yellow-400' },
+      { to: '/dashboard',       icon: LayoutDashboard, label: t('nav.dashboard'),      color: 'text-primary-400' },
+      { to: '/chat',            icon: MessageSquare,   label: t('nav.aiCoach'),         color: 'text-purple-400' },
+      { to: '/coaches',         icon: Users,           label: t('nav.findCoach'),       color: 'text-blue-400' },
+      { to: '/coach-secretary', icon: Zap,             label: t('nav.aiSecretary'),     color: 'text-yellow-400' },
     ],
   },
   {
     label: 'TRAIN & TRACK',
     items: [
-      { to: '/training',  icon: Dumbbell, label: 'Training',   color: 'text-orange-400' },
-      { to: '/nutrition', icon: Salad,    label: 'Nutrition',  color: 'text-green-400' },
-      { to: '/food-log',  icon: BookOpen, label: 'Food Log',   color: 'text-emerald-400' },
-      { to: '/sleep',     icon: Moon,     label: 'Sleep',      color: 'text-indigo-400' },
-      { to: '/mental',    icon: Brain,    label: 'Wellness',   color: 'text-pink-400' },
+      { to: '/training',  icon: Dumbbell, label: t('nav.training'),       color: 'text-orange-400' },
+      { to: '/nutrition', icon: Salad,    label: t('nav.nutrition'),      color: 'text-green-400' },
+      { to: '/food-log',  icon: BookOpen, label: t('nav.foodLog'),        color: 'text-emerald-400' },
+      { to: '/sleep',     icon: Moon,     label: t('nav.sleep'),          color: 'text-indigo-400' },
+      { to: '/mental',    icon: Brain,    label: t('nav.wellness'),       color: 'text-pink-400' },
     ],
   },
   {
     label: 'COMMUNITY',
     items: [
-      { to: '/community',   icon: Flame,        label: 'Community Feed',   color: 'text-orange-400' },
-      { to: '/activities',  icon: CalendarDays, label: 'Group Activities', color: 'text-pink-400' },
+      { to: '/community',  icon: Flame,        label: t('nav.community'),        color: 'text-orange-400' },
+      { to: '/activities', icon: CalendarDays, label: t('nav.groupActivities'),  color: 'text-pink-400' },
     ],
   },
   {
     label: 'RESULTS',
     items: [
-      { to: '/progress', icon: Camera,    label: 'Progress Photos', color: 'text-cyan-400' },
-      { to: '/reports',  icon: BarChart3, label: 'Weekly Reports',  color: 'text-rose-400' },
+      { to: '/progress', icon: Camera,    label: t('nav.progressPhotos'),  color: 'text-cyan-400' },
+      { to: '/reports',  icon: BarChart3, label: t('nav.weeklyReports'),   color: 'text-rose-400' },
     ],
   },
   {
     label: 'ACCOUNT',
     items: [
-      { to: '/pricing', icon: Crown, label: 'Upgrade Plan', color: 'text-yellow-400' },
+      { to: '/pricing', icon: Crown, label: t('nav.upgradePlan'), color: 'text-yellow-400' },
     ],
   },
 ];
 
-const coachNavSections = [
+const getCoachNavSections = (t) => [
   {
     label: 'COACH',
     items: [
-      { to: '/coach-dashboard', icon: LayoutDashboard, label: 'Coach Dashboard', color: 'text-green-400' },
-      { to: '/chat',            icon: MessageSquare,   label: 'AI Coach',         color: 'text-purple-400' },
+      { to: '/coach-dashboard', icon: LayoutDashboard, label: t('nav.coachDashboard'), color: 'text-green-400' },
+      { to: '/chat',            icon: MessageSquare,   label: t('nav.aiCoach'),         color: 'text-purple-400' },
     ],
   },
   {
     label: 'COMMUNITY',
     items: [
-      { to: '/community',  icon: Flame,        label: 'Community Feed',   color: 'text-orange-400' },
-      { to: '/activities', icon: CalendarDays, label: 'Group Activities', color: 'text-pink-400' },
+      { to: '/community',  icon: Flame,        label: t('nav.community'),       color: 'text-orange-400' },
+      { to: '/activities', icon: CalendarDays, label: t('nav.groupActivities'), color: 'text-pink-400' },
     ],
   },
 ];
@@ -89,7 +91,11 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { t } = useTranslation();
   usePushNotifications(user);
+
+  const userNavSections  = getUserNavSections(t);
+  const coachNavSections = getCoachNavSections(t);
 
   const handleLogout = () => { logout(); navigate('/'); };
 
@@ -168,6 +174,11 @@ export default function Layout() {
         </div>
       )}
 
+      {/* Language Switcher */}
+      <div className="px-4 pb-2">
+        <LanguageSwitcher compact />
+      </div>
+
       {/* Logout */}
       <div className="p-3 border-t border-white/5">
         <button onClick={handleLogout}
@@ -175,7 +186,7 @@ export default function Layout() {
           <div className="w-7 h-7 rounded-lg flex items-center justify-center group-hover:bg-red-900/20 transition-all">
             <LogOut size={15} />
           </div>
-          Sign Out
+          {t('nav.signOut')}
         </button>
       </div>
     </div>

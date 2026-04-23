@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 import './index.css';
+import './i18n';
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

@@ -6,6 +6,16 @@
   * {
     @apply border-dark-600;
   }
+
+  /* Arabic RTL support */
+  [dir="rtl"] {
+    font-family: 'Segoe UI', 'Arial', sans-serif;
+  }
+  [dir="rtl"] .sidebar-rtl {
+    border-right: none;
+    border-left: 1px solid rgba(255,255,255,0.05);
+  }
+
   body {
     @apply bg-dark-900 text-white font-sans antialiased;
     background-image:
