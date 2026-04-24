@@ -23,7 +23,7 @@ app.use(helmet({
 // ─── CORS ────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://flix-coach.vercel.app',
+  'https://lix-coach.vercel.app',
   ...(process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',').map(o => o.trim()) : []),
 ];
 app.use(cors({
