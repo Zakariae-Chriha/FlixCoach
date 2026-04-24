@@ -116,7 +116,7 @@ router.post('/:id/leave', protect, async (req, res) => {
     }
 
     activity.participants = activity.participants.filter(p => p.user?.toString() !== req.user._id.toString());
-    activity.currentParticipants = Math.max(1, activity.currentParticipants - 1);
+    activity.currentParticipants = Math.max(0, activity.currentParticipants - 1);
     await activity.save();
     res.json({ success: true });
   } catch (err) {

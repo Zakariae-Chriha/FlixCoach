@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, MessageSquare, Dumbbell, Salad,
   BookOpen, Moon, Brain, Camera, BarChart3, LogOut,
-  Users, Shield, Zap, Menu, X, ChevronRight, Flame, CalendarDays, Crown,
+  Users, Shield, Zap, Menu, X, ChevronRight, Flame, CalendarDays, Crown, CalendarCheck,
 } from 'lucide-react';
 import { useState } from 'react';
 import { usePushNotifications } from '../hooks/usePushNotifications';
@@ -18,6 +18,7 @@ const getUserNavSections = (t) => [
       { to: '/chat',            icon: MessageSquare,   label: t('nav.aiCoach'),         color: 'text-purple-400' },
       { to: '/coaches',         icon: Users,           label: t('nav.findCoach'),       color: 'text-blue-400' },
       { to: '/coach-secretary', icon: Zap,             label: t('nav.aiSecretary'),     color: 'text-yellow-400' },
+      { to: '/my-bookings',     icon: CalendarCheck,   label: t('nav.myBookings'),      color: 'text-teal-400' },
     ],
   },
   {

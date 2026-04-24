@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { isValidObjectId } = require('mongoose');
 const protect = require('../middleware/auth');
 const Coach = require('../models/Coach');
 const Booking = require('../models/Booking');
@@ -125,6 +126,11 @@ router.get('/clients', protect, coachOnly, async (req, res) => {
 
 // PATCH /api/coach-dashboard/bookings/:id — confirm or cancel
 router.patch('/bookings/:id', protect, coachOnly, async (req, res) => {
+  if (!isValidObjectId(req.params.id))
+    return res.status(400).json({ success: false, message: 'Invalid booking ID' });
+  const VALID = ['confirmed', 'cancelled', 'completed'];
+  if (!VALID.includes(req.body.status))
+    return res.status(400).json({ success: false, message: 'Invalid status. Must be one of: confirmed, cancelled, completed' });
   try {
     const coach = await Coach.findOne({ user: req.user._id });
     const booking = await Booking.findOne({ _id: req.params.id, coach: coach._id });

@@ -99,6 +99,7 @@ router.post('/create-portal', protect, async (req, res) => {
 
 /* POST /api/stripe/webhook — Stripe events (raw body required) */
 router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  if (!stripe) return res.status(503).send('Payments not configured');
   const sig = req.headers['stripe-signature'];
   let event;
   try {

@@ -27,8 +27,12 @@ router.post('/subscribe', protect, async (req, res) => {
 
 /* DELETE /api/notifications/unsubscribe */
 router.delete('/unsubscribe', protect, async (req, res) => {
-  await PushSubscription.deleteMany({ user: req.user._id });
-  res.json({ success: true });
+  try {
+    await PushSubscription.deleteMany({ user: req.user._id });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 /* GET /api/notifications — in-app notifications */
@@ -45,8 +49,12 @@ router.get('/', protect, async (req, res) => {
 
 /* PATCH /api/notifications/read */
 router.patch('/read', protect, async (req, res) => {
-  await Notification.updateMany({ recipient: req.user._id, read: false }, { read: true });
-  res.json({ success: true });
+  try {
+    await Notification.updateMany({ recipient: req.user._id, read: false }, { read: true });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 module.exports = router;

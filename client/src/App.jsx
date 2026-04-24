@@ -23,6 +23,7 @@ import CoachApply from './pages/CoachApply';
 import AdminDashboard from './pages/AdminDashboard';
 import CoachSecretary from './pages/CoachSecretary';
 import CoachDashboard from './pages/CoachDashboard';
+import MyBookings from './pages/MyBookings';
 import Community from './pages/Community';
 import GroupActivities from './pages/GroupActivities';
 import Pricing from './pages/Pricing';
@@ -96,6 +97,7 @@ function AppRoutes() {
           <Route path="coaches" element={<Coaches />} />
           <Route path="coaches/:id" element={<CoachProfile />} />
           <Route path="coach-secretary" element={<CoachSecretary />} />
+          <Route path="my-bookings" element={<MyBookings />} />
           <Route path="coach-dashboard" element={<CoachDashboard />} />
           <Route path="community" element={<Community />} />
           <Route path="activities" element={<GroupActivities />} />

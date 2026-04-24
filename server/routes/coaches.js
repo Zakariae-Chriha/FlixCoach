@@ -3,8 +3,21 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { isValidObjectId } = require('mongoose');
 const protect = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
+
+const validateId = (req, res, next) => {
+  const id = req.params.id || req.params.coachId || req.params.userId;
+  if (id && !isValidObjectId(id)) {
+    return res.status(400).json({ success: false, message: 'Invalid ID format' });
+  }
+  next();
+};
+
+router.param('id',      (req, res, next, val) => { if (!isValidObjectId(val)) return res.status(400).json({ success: false, message: 'Invalid ID format' }); next(); });
+router.param('coachId', (req, res, next, val) => { if (!isValidObjectId(val)) return res.status(400).json({ success: false, message: 'Invalid ID format' }); next(); });
+router.param('userId',  (req, res, next, val) => { if (!isValidObjectId(val)) return res.status(400).json({ success: false, message: 'Invalid ID format' }); next(); });
 const CoachApplication = require('../models/CoachApplication');
 const Coach = require('../models/Coach');
 const Booking = require('../models/Booking');
@@ -59,6 +72,11 @@ router.get('/:id', async (req, res) => {
 // POST /api/coaches/apply — coach submits application
 router.post('/apply', upload.fields([{ name: 'photo', maxCount: 1 }, { name: 'cv', maxCount: 1 }]), async (req, res) => {
   try {
+    const { fullName, email, phone, specialties, experience, bio } = req.body;
+    if (!fullName || !email || !phone || !specialties || !experience || !bio) {
+      return res.status(400).json({ success: false, message: 'Missing required fields: fullName, email, phone, specialties, experience, bio' });
+    }
+
     const existing = await CoachApplication.findOne({ email: req.body.email });
     if (existing) return res.status(400).json({ success: false, message: 'Application already submitted with this email' });
 
@@ -106,6 +124,18 @@ router.post('/secretary', protect, async (req, res) => {
 });
 
 // ─── BOOKING ROUTES (authenticated users) ────────────────────────
+
+// GET /api/coaches/my/bookings — get current user's bookings (must be before /:id/bookings)
+router.get('/my/bookings', protect, async (req, res) => {
+  try {
+    const bookings = await Booking.find({ client: req.user._id })
+      .populate('coach', 'fullName photo mainSpecialty city pricePerSession')
+      .sort({ date: -1 });
+    res.json({ success: true, bookings });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 // POST /api/coaches/:id/book — book a session
 router.post('/:id/book', protect, async (req, res) => {
@@ -237,18 +267,6 @@ router.post('/:id/review', protect, async (req, res) => {
     await coach.save();
 
     res.json({ success: true, avgRating: coach.avgRating });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// GET /api/coaches/my/bookings — get current user's bookings
-router.get('/my/bookings', protect, async (req, res) => {
-  try {
-    const bookings = await Booking.find({ client: req.user._id })
-      .populate('coach', 'fullName photo mainSpecialty city')
-      .sort({ date: -1 });
-    res.json({ success: true, bookings });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

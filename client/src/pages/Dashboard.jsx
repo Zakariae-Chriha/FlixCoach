@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { coachAPI, logsAPI, trainingAPI } from '../services/api';
 import { toast } from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Dumbbell, Salad, Moon, Brain, Droplets, Zap,
   TrendingUp, ChevronRight, MessageSquare, Plus, Flame,
 } from 'lucide-react';
 import DailyChecklist from '../components/DailyChecklist';
 import NotificationSetup from '../components/NotificationSetup';
+import { useTranslation } from 'react-i18next';
 
 function StatCard({ icon: Icon, label, value, sub, color = 'primary', onClick }) {
   const colors = {
@@ -37,6 +38,8 @@ function StatCard({ icon: Icon, label, value, sub, color = 'primary', onClick })
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [log, setLog] = useState(null);
   const [workout, setWorkout] = useState(null);
   const [motivation, setMotivation] = useState('');
@@ -45,6 +48,10 @@ export default function Dashboard() {
   const [loadingBriefing, setLoadingBriefing] = useState(false);
 
   useEffect(() => {
+    if (searchParams.get('upgraded') === 'true') {
+      toast.success('Subscription activated! Welcome to your new plan!');
+      setSearchParams({});
+    }
     logsAPI.getToday().then((r) => { setLog(r.data.log); setWater(r.data.log?.waterIntake || 0); }).catch(() => {});
     trainingAPI.getToday().then((r) => setWorkout(r.data.workout)).catch(() => {});
     coachAPI.getMotivation().then((r) => setMotivation(r.data.message)).catch(() => {});
@@ -73,8 +80,8 @@ export default function Dashboard() {
 
   const firstName = user?.name?.split(' ')[0] || 'Athlete';
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const greeting = hour < 12 ? t('dashboard.goodMorning') : hour < 17 ? t('dashboard.goodAfternoon') : t('dashboard.goodEvening');
+  const today = new Date().toLocaleDateString(i18n.language === 'ar' ? 'ar-SA' : i18n.language === 'de' ? 'de-DE' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -83,11 +90,11 @@ export default function Dashboard() {
         <div>
           <p className="text-gray-400 text-sm">{greeting} • {today}</p>
           <h1 className="text-2xl sm:text-3xl font-black">
-            {firstName}! <span className="gradient-text">Let's crush it.</span>
+            {firstName}! <span className="gradient-text">{t('dashboard.letsGo')}</span>
           </h1>
         </div>
         <button onClick={() => navigate('/chat')} className="btn-primary flex items-center gap-2 px-4 py-2.5 text-sm flex-shrink-0">
-          <MessageSquare size={16} /> Ask Coach
+          <MessageSquare size={16} /> {t('dashboard.askCoach')}
         </button>
       </div>
 
@@ -97,27 +104,27 @@ export default function Dashboard() {
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          icon={Salad} label="Calories Today" color="green"
+          icon={Salad} label={t('dashboard.caloriesToday')} color="green"
           value={log?.totalCalories ? `${log.totalCalories}` : '—'}
-          sub={log?.totalProtein ? `${log.totalProtein}g protein` : 'Log your meals'}
+          sub={log?.totalProtein ? `${log.totalProtein}g protein` : t('dashboard.logMeals')}
           onClick={() => navigate('/food-log')}
         />
         <StatCard
-          icon={Dumbbell} label="Workout" color="primary"
+          icon={Dumbbell} label={t('dashboard.workout')} color="primary"
           value={log?.workoutCompleted ? 'Done ✓' : workout?.type || '—'}
-          sub={workout?.title || 'No active program'}
+          sub={workout?.title || t('dashboard.noProgram')}
           onClick={() => navigate('/training')}
         />
         <StatCard
-          icon={Moon} label="Sleep" color="blue"
+          icon={Moon} label={t('dashboard.sleep')} color="blue"
           value={log?.sleepHours ? `${log.sleepHours}h` : '—'}
-          sub={log?.sleepHours ? (log.sleepHours >= 7 ? 'Good recovery' : 'Needs improvement') : 'Log your sleep'}
+          sub={log?.sleepHours ? (log.sleepHours >= 7 ? t('dashboard.goodRecovery') : t('dashboard.needsImprovement')) : t('dashboard.logSleep')}
           onClick={() => navigate('/sleep')}
         />
         <StatCard
-          icon={Brain} label="Motivation" color="purple"
+          icon={Brain} label={t('dashboard.motivation')} color="purple"
           value={log?.motivationLevel ? `${log.motivationLevel}/10` : '—'}
-          sub={log?.mood || 'Check in now'}
+          sub={log?.mood || t('dashboard.checkIn')}
           onClick={() => navigate('/mental')}
         />
       </div>
@@ -135,7 +142,7 @@ export default function Dashboard() {
           <div className="glass-card p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold flex items-center gap-2">
-                <Droplets size={18} className="text-blue-400" /> Water
+                <Droplets size={18} className="text-blue-400" /> {t('dashboard.water')}
               </h3>
               <span className="text-sm font-bold text-blue-400">{water}/8</span>
             </div>
@@ -146,7 +153,7 @@ export default function Dashboard() {
               ))}
             </div>
             <button onClick={addWater} className="btn-secondary w-full text-sm py-2 flex items-center gap-2 justify-center">
-              <Plus size={14} /> Add glass
+              <Plus size={14} /> {t('dashboard.addGlass')}
             </button>
           </div>
 
@@ -155,7 +162,7 @@ export default function Dashboard() {
             <div className="glass-card p-5 border border-primary-800/20">
               <div className="flex items-center gap-2 mb-2">
                 <Zap size={14} className="text-primary-400" />
-                <span className="text-xs font-semibold text-primary-400 uppercase tracking-wider">Daily Fuel</span>
+                <span className="text-xs font-semibold text-primary-400 uppercase tracking-wider">{t('dashboard.dailyFuel')}</span>
               </div>
               <p className="text-sm text-gray-200 leading-relaxed italic">"{motivation}"</p>
             </div>
@@ -171,8 +178,8 @@ export default function Dashboard() {
                 <TrendingUp size={16} className="text-primary-400" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-white">Weekly Report</p>
-                <p className="text-xs text-gray-400">Get AI analysis & improvements</p>
+                <p className="text-sm font-semibold text-white">{t('dashboard.weeklyReport')}</p>
+                <p className="text-xs text-gray-400">{t('dashboard.weeklyReportSub')}</p>
               </div>
               <ChevronRight size={16} className="text-gray-500 group-hover:text-primary-400 transition-colors" />
             </div>
@@ -185,7 +192,7 @@ export default function Dashboard() {
         <div className="glass-card p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold text-lg flex items-center gap-2">
-              <Dumbbell size={20} className="text-primary-400" /> Today's Workout
+              <Dumbbell size={20} className="text-primary-400" /> {t('dashboard.todaysWorkout')}
             </h2>
             <button onClick={() => navigate('/training')} className="text-primary-400 text-sm hover:text-primary-300 flex items-center gap-1">
               View full <ChevronRight size={14} />
@@ -223,10 +230,10 @@ export default function Dashboard() {
       <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-bold text-lg flex items-center gap-2">
-            <Flame size={20} className="text-orange-400" /> AI Morning Briefing
+            <Flame size={20} className="text-orange-400" /> {t('dashboard.morningBriefing')}
           </h2>
           <button onClick={loadBriefing} disabled={loadingBriefing} className="btn-primary text-sm py-2 px-4">
-            {loadingBriefing ? 'Loading...' : 'Get Briefing'}
+            {loadingBriefing ? t('common.loading') : t('dashboard.getBriefing')}
           </button>
         </div>
         {briefing ? (
@@ -241,10 +248,10 @@ export default function Dashboard() {
       {/* Quick actions */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Log Meal', icon: Salad, to: '/food-log', color: 'from-green-600 to-emerald-600' },
-          { label: 'Log Sleep', icon: Moon, to: '/sleep', color: 'from-blue-600 to-indigo-600' },
-          { label: 'Check In', icon: Brain, to: '/mental', color: 'from-purple-600 to-violet-600' },
-          { label: 'Chat Coach', icon: MessageSquare, to: '/chat', color: 'from-primary-600 to-pink-600' },
+          { label: t('dashboard.logMeal'), icon: Salad, to: '/food-log', color: 'from-green-600 to-emerald-600' },
+          { label: t('dashboard.logSleepBtn'), icon: Moon, to: '/sleep', color: 'from-blue-600 to-indigo-600' },
+          { label: t('dashboard.checkInBtn'), icon: Brain, to: '/mental', color: 'from-purple-600 to-violet-600' },
+          { label: t('dashboard.chatCoach'), icon: MessageSquare, to: '/chat', color: 'from-primary-600 to-pink-600' },
         ].map(({ label, icon: Icon, to, color }) => (
           <button key={to} onClick={() => navigate(to)}
             className={`flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-br ${color} hover:opacity-90 transition-opacity`}>

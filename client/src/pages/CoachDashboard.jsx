@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useState, useEffect } from 'react';
 import { API_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -6,7 +7,7 @@ import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import {
   Calendar, Clock, Users, Star, TrendingUp, CheckCircle,
-  XCircle, MapPin, Euro, ChevronRight, Zap, Video, Lock, Eye, EyeOff,
+  XCircle, MapPin, Euro, Zap, Video, Lock, Eye, EyeOff,
 } from 'lucide-react';
 import VideoCall from '../components/VideoCall';
 
@@ -23,149 +24,8 @@ function StatusBadge({ status }) {
   return <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${map[status] || ''}`}>{status}</span>;
 }
 
-export default function CoachDashboard() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [data, setData] = useState(null);
-  const [allBookings, setAllBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('today');
-  const [availability, setAvailability] = useState({});
-  const [savingAvail, setSavingAvail] = useState(false);
-  const [activeCall, setActiveCall] = useState(null);
-  const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' });
-  const [pwLoading, setPwLoading] = useState(false);
-  const [showPw, setShowPw] = useState({ current: false, newPw: false, confirm: false });
-  const [clients, setClients] = useState([]);
-  const [clientsLoading, setClientsLoading] = useState(false);
-
-  useEffect(() => {
-    if (user?.role !== 'coach') { navigate('/dashboard'); return; }
-    loadData();
-  }, [user]);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [statsRes, bookingsRes] = await Promise.all([
-        api.get('/coach-dashboard/stats'),
-        api.get('/coach-dashboard/bookings'),
-      ]);
-      setData(statsRes.data);
-      setAllBookings(bookingsRes.data.bookings);
-      // Build availability map
-      const avail = {};
-      statsRes.data.coach?.availability?.forEach(slot => {
-        avail[slot.day] = { startTime: slot.startTime, endTime: slot.endTime };
-      });
-      setAvailability(avail);
-    } catch { toast.error('Failed to load dashboard'); }
-    finally { setLoading(false); }
-  };
-
-  const updateBookingStatus = async (id, status) => {
-    try {
-      await api.patch(`/coach-dashboard/bookings/${id}`, { status });
-      toast.success(`Booking ${status}`);
-      loadData();
-    } catch { toast.error('Failed to update booking'); }
-  };
-
-  const saveAvailability = async () => {
-    setSavingAvail(true);
-    try {
-      const slots = Object.entries(availability)
-        .filter(([, v]) => v.startTime && v.endTime)
-        .map(([day, v]) => ({ day, startTime: v.startTime, endTime: v.endTime }));
-      await api.patch('/coach-dashboard/availability', { availability: slots });
-      toast.success('Availability saved!');
-    } catch { toast.error('Failed to save'); }
-    finally { setSavingAvail(false); }
-  };
-
-  if (user?.role !== 'coach') return null;
-
-function ClientsTab({ clients, setClients, loading, setLoading }) {
-  useEffect(() => {
-    setLoading(true);
-    api.get('/coach-dashboard/clients')
-      .then(r => setClients(r.data.clients))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <div className="flex justify-center py-10"><div className="w-8 h-8 rounded-full border-4 border-dark-600 border-t-primary-500 animate-spin" /></div>;
-
-  if (!clients.length) return (
-    <div className="glass-card p-10 text-center">
-      <Users size={40} className="text-gray-600 mx-auto mb-3" />
-      <p className="text-gray-400">No clients yet. Share your profile to get bookings!</p>
-    </div>
-  );
-
+function BookingCard({ booking, showActions, onStatusChange, onStartCall }) {
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-gray-400">{clients.length} client{clients.length !== 1 ? 's' : ''} total</p>
-      {clients.map(c => (
-        <div key={c.id} className="glass-card p-4 space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-purple-700 flex items-center justify-center font-bold text-white flex-shrink-0">
-              {c.name?.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-white">{c.name}</p>
-              <p className="text-xs text-gray-400">{c.email}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xl font-black text-white">{c.progressPct}%</p>
-              <p className="text-xs text-gray-500">completion</p>
-            </div>
-          </div>
-
-          {/* Progress bar */}
-          <div className="w-full bg-dark-700 rounded-full h-2">
-            <div
-              className={`h-2 rounded-full transition-all ${c.progressPct >= 75 ? 'bg-green-500' : c.progressPct >= 40 ? 'bg-yellow-500' : 'bg-primary-500'}`}
-              style={{ width: `${c.progressPct}%` }}
-            />
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 text-center text-xs">
-            <div className="bg-dark-700/50 rounded-lg p-2">
-              <p className="font-bold text-white">{c.total}</p>
-              <p className="text-gray-500">Total</p>
-            </div>
-            <div className="bg-green-900/20 rounded-lg p-2">
-              <p className="font-bold text-green-400">{c.completed}</p>
-              <p className="text-gray-500">Done</p>
-            </div>
-            <div className="bg-yellow-900/20 rounded-lg p-2">
-              <p className="font-bold text-yellow-400">{c.totalSpent}€</p>
-              <p className="text-gray-500">Spent</p>
-            </div>
-          </div>
-
-          {(c.lastSession || c.nextSession) && (
-            <div className="flex gap-3 text-xs text-gray-400">
-              {c.lastSession && <span>Last: {new Date(c.lastSession).toLocaleDateString('de-DE')}</span>}
-              {c.nextSession && <span className="text-primary-400">Next: {new Date(c.nextSession).toLocaleDateString('de-DE')}</span>}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-  if (loading) return (
-    <div className="flex justify-center py-20">
-      <div className="w-10 h-10 rounded-full border-4 border-dark-600 border-t-primary-500 animate-spin" />
-    </div>
-  );
-
-  const { coach, todayBookings, upcomingBookings, totalCompleted, totalEarnings } = data;
-
-  const BookingCard = ({ booking, showActions = false }) => (
     <div className="glass-card p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -205,15 +65,15 @@ function ClientsTab({ clients, setClients, loading, setLoading }) {
 
       {showActions && booking.status === 'confirmed' && (
         <div className="flex gap-2 pt-1 flex-wrap">
-          <button onClick={() => setActiveCall({ ...booking, coachName: coach?.user?.name })}
+          <button onClick={() => onStartCall(booking)}
             className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-blue-900/30 hover:bg-blue-600 text-blue-400 hover:text-white text-xs font-bold border border-blue-800/30 transition-all">
             <Video size={13} /> Join Call
           </button>
-          <button onClick={() => updateBookingStatus(booking._id, 'completed')}
+          <button onClick={() => onStatusChange(booking._id, 'completed')}
             className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-green-900/30 hover:bg-green-900/50 text-green-400 text-xs font-medium border border-green-800/30 transition-all">
             <CheckCircle size={13} /> Mark Complete
           </button>
-          <button onClick={() => updateBookingStatus(booking._id, 'cancelled')}
+          <button onClick={() => onStatusChange(booking._id, 'cancelled')}
             className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-red-900/20 hover:bg-red-900/40 text-red-400 text-xs font-medium border border-red-800/30 transition-all">
             <XCircle size={13} /> Cancel
           </button>
@@ -221,6 +81,152 @@ function ClientsTab({ clients, setClients, loading, setLoading }) {
       )}
     </div>
   );
+}
+
+function ClientsTab() {
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/coach-dashboard/clients')
+      .then(r => setClients(r.data.clients))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return (
+    <div className="flex justify-center py-10">
+      <div className="w-8 h-8 rounded-full border-4 border-dark-600 border-t-primary-500 animate-spin" />
+    </div>
+  );
+
+  if (!clients.length) return (
+    <div className="glass-card p-10 text-center">
+      <Users size={40} className="text-gray-600 mx-auto mb-3" />
+      <p className="text-gray-400">No clients yet. Share your profile to get bookings!</p>
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-gray-400">{clients.length} client{clients.length !== 1 ? 's' : ''} total</p>
+      {clients.map(c => (
+        <div key={c.id} className="glass-card p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-purple-700 flex items-center justify-center font-bold text-white flex-shrink-0">
+              {c.name?.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-white">{c.name}</p>
+              <p className="text-xs text-gray-400">{c.email}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xl font-black text-white">{c.progressPct}%</p>
+              <p className="text-xs text-gray-500">completion</p>
+            </div>
+          </div>
+
+          <div className="w-full bg-dark-700 rounded-full h-2">
+            <div
+              className={`h-2 rounded-full transition-all ${c.progressPct >= 75 ? 'bg-green-500' : c.progressPct >= 40 ? 'bg-yellow-500' : 'bg-primary-500'}`}
+              style={{ width: `${c.progressPct}%` }}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 text-center text-xs">
+            <div className="bg-dark-700/50 rounded-lg p-2">
+              <p className="font-bold text-white">{c.total}</p>
+              <p className="text-gray-500">Total</p>
+            </div>
+            <div className="bg-green-900/20 rounded-lg p-2">
+              <p className="font-bold text-green-400">{c.completed}</p>
+              <p className="text-gray-500">Done</p>
+            </div>
+            <div className="bg-yellow-900/20 rounded-lg p-2">
+              <p className="font-bold text-yellow-400">{c.totalSpent}€</p>
+              <p className="text-gray-500">Spent</p>
+            </div>
+          </div>
+
+          {(c.lastSession || c.nextSession) && (
+            <div className="flex gap-3 text-xs text-gray-400">
+              {c.lastSession && <span>Last: {new Date(c.lastSession).toLocaleDateString('de-DE')}</span>}
+              {c.nextSession && <span className="text-primary-400">Next: {new Date(c.nextSession).toLocaleDateString('de-DE')}</span>}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function CoachDashboard() {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [data, setData] = useState(null);
+  const [allBookings, setAllBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState('today');
+  const [availability, setAvailability] = useState({});
+  const [savingAvail, setSavingAvail] = useState(false);
+  const [activeCall, setActiveCall] = useState(null);
+  const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' });
+  const [pwLoading, setPwLoading] = useState(false);
+  const [showPw, setShowPw] = useState({ current: false, newPw: false, confirm: false });
+
+  useEffect(() => {
+    if (user?.role !== 'coach') { navigate('/dashboard'); return; }
+    loadData();
+  }, [user]);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [statsRes, bookingsRes] = await Promise.all([
+        api.get('/coach-dashboard/stats'),
+        api.get('/coach-dashboard/bookings'),
+      ]);
+      setData(statsRes.data);
+      setAllBookings(bookingsRes.data.bookings);
+      const avail = {};
+      statsRes.data.coach?.availability?.forEach(slot => {
+        avail[slot.day] = { startTime: slot.startTime, endTime: slot.endTime };
+      });
+      setAvailability(avail);
+    } catch { toast.error('Failed to load dashboard'); }
+    finally { setLoading(false); }
+  };
+
+  const updateBookingStatus = async (id, status) => {
+    try {
+      await api.patch(`/coach-dashboard/bookings/${id}`, { status });
+      toast.success(`Booking ${status}`);
+      loadData();
+    } catch { toast.error('Failed to update booking'); }
+  };
+
+  const saveAvailability = async () => {
+    setSavingAvail(true);
+    try {
+      const slots = Object.entries(availability)
+        .filter(([, v]) => v.startTime && v.endTime)
+        .map(([day, v]) => ({ day, startTime: v.startTime, endTime: v.endTime }));
+      await api.patch('/coach-dashboard/availability', { availability: slots });
+      toast.success('Availability saved!');
+    } catch { toast.error('Failed to save'); }
+    finally { setSavingAvail(false); }
+  };
+
+  if (user?.role !== 'coach') return null;
+
+  if (loading) return (
+    <div className="flex justify-center py-20">
+      <div className="w-10 h-10 rounded-full border-4 border-dark-600 border-t-primary-500 animate-spin" />
+    </div>
+  );
+
+  const { coach, todayBookings, upcomingBookings, totalCompleted, totalEarnings } = data;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -249,10 +255,10 @@ function ClientsTab({ clients, setClients, loading, setLoading }) {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Today's Sessions", value: todayBookings?.length || 0, icon: Calendar, color: 'text-primary-400 bg-primary-900/30' },
-          { label: 'This Week', value: upcomingBookings?.length || 0, icon: Clock, color: 'text-blue-400 bg-blue-900/30' },
-          { label: 'Completed', value: totalCompleted || 0, icon: CheckCircle, color: 'text-green-400 bg-green-900/30' },
-          { label: 'Total Earned', value: `${totalEarnings || 0}€`, icon: TrendingUp, color: 'text-yellow-400 bg-yellow-900/30' },
+          { label: t('coachDashboard.todaysSessions'), value: todayBookings?.length || 0, icon: Calendar, color: 'text-primary-400 bg-primary-900/30' },
+          { label: t('coachDashboard.thisWeek'),       value: upcomingBookings?.length || 0, icon: Clock,     color: 'text-blue-400 bg-blue-900/30' },
+          { label: t('coachDashboard.completed'),      value: totalCompleted || 0,            icon: CheckCircle, color: 'text-green-400 bg-green-900/30' },
+          { label: t('coachDashboard.totalEarned'),    value: `${totalEarnings || 0}€`,       icon: TrendingUp, color: 'text-yellow-400 bg-yellow-900/30' },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="glass-card p-4">
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${color} mb-3`}><Icon size={16} /></div>
@@ -265,12 +271,12 @@ function ClientsTab({ clients, setClients, loading, setLoading }) {
       {/* Tabs */}
       <div className="flex gap-1 bg-dark-800 p-1 rounded-xl overflow-x-auto">
         {[
-          { id: 'today', label: "Today", icon: Zap },
-          { id: 'upcoming', label: 'This Week', icon: Calendar },
-          { id: 'all', label: 'All Bookings', icon: Users },
-          { id: 'clients', label: 'Clients', icon: TrendingUp },
-          { id: 'availability', label: 'My Schedule', icon: Clock },
-          { id: 'security', label: 'Password', icon: Lock },
+          { id: 'today',        label: t('coachDashboard.today'),       icon: Zap },
+          { id: 'upcoming',     label: t('coachDashboard.thisWeek'),    icon: Calendar },
+          { id: 'all',          label: t('coachDashboard.allBookings'), icon: Users },
+          { id: 'clients',      label: t('coachDashboard.clients'),     icon: TrendingUp },
+          { id: 'availability', label: t('coachDashboard.schedule'),    icon: Clock },
+          { id: 'security',     label: t('coachDashboard.password'),    icon: Lock },
         ].map(({ id, label, icon: Icon }) => (
           <button key={id} onClick={() => setTab(id)}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium transition-all whitespace-nowrap
@@ -286,9 +292,12 @@ function ClientsTab({ clients, setClients, loading, setLoading }) {
           {todayBookings?.length === 0 ? (
             <div className="glass-card p-10 text-center">
               <Calendar size={40} className="text-gray-600 mx-auto mb-3" />
-              <p className="text-gray-400">No sessions today — enjoy your rest day! 😊</p>
+              <p className="text-gray-400">No sessions today — enjoy your rest day!</p>
             </div>
-          ) : todayBookings.map(b => <BookingCard key={b._id} booking={b} showActions />)}
+          ) : todayBookings.map(b => (
+            <BookingCard key={b._id} booking={b} showActions
+              onStatusChange={updateBookingStatus} onStartCall={setActiveCall} />
+          ))}
         </div>
       )}
 
@@ -299,7 +308,10 @@ function ClientsTab({ clients, setClients, loading, setLoading }) {
             <div className="glass-card p-10 text-center">
               <p className="text-gray-400">No upcoming sessions this week.</p>
             </div>
-          ) : upcomingBookings.map(b => <BookingCard key={b._id} booking={b} showActions />)}
+          ) : upcomingBookings.map(b => (
+            <BookingCard key={b._id} booking={b} showActions
+              onStatusChange={updateBookingStatus} onStartCall={setActiveCall} />
+          ))}
         </div>
       )}
 
@@ -310,14 +322,15 @@ function ClientsTab({ clients, setClients, loading, setLoading }) {
             <div className="glass-card p-10 text-center">
               <p className="text-gray-400">No bookings yet. Your profile is live — clients can find you!</p>
             </div>
-          ) : allBookings.map(b => <BookingCard key={b._id} booking={b} showActions />)}
+          ) : allBookings.map(b => (
+            <BookingCard key={b._id} booking={b} showActions
+              onStatusChange={updateBookingStatus} onStartCall={setActiveCall} />
+          ))}
         </div>
       )}
 
       {/* Clients Progress */}
-      {tab === 'clients' && (
-        <ClientsTab coachId={coach?._id} clients={clients} setClients={setClients} loading={clientsLoading} setLoading={setClientsLoading} />
-      )}
+      {tab === 'clients' && <ClientsTab />}
 
       {/* Availability */}
       {tab === 'availability' && (
@@ -375,8 +388,8 @@ function ClientsTab({ clients, setClients, loading, setLoading }) {
           </div>
 
           {[
-            { key: 'current', label: 'Current Password', placeholder: 'Enter your current password' },
-            { key: 'newPw',   label: 'New Password',     placeholder: 'Min. 6 characters' },
+            { key: 'current', label: 'Current Password',     placeholder: 'Enter your current password' },
+            { key: 'newPw',   label: 'New Password',         placeholder: 'Min. 6 characters' },
             { key: 'confirm', label: 'Confirm New Password', placeholder: 'Repeat new password' },
           ].map(({ key, label, placeholder }) => (
             <div key={key}>
@@ -408,14 +421,16 @@ function ClientsTab({ clients, setClients, loading, setLoading }) {
               setPwLoading(true);
               try {
                 await api.patch('/auth/change-password', { currentPassword: pwForm.current, newPassword: pwForm.newPw });
-                toast.success('Password changed successfully! 🔐');
+                toast.success('Password changed successfully!');
                 setPwForm({ current: '', newPw: '', confirm: '' });
               } catch (err) {
                 toast.error(err.response?.data?.message || 'Failed to change password');
               } finally { setPwLoading(false); }
             }}
             className="w-full py-3.5 rounded-xl bg-gradient-to-r from-primary-500 to-purple-600 text-white font-bold hover:opacity-90 transition-all disabled:opacity-40 flex items-center justify-center gap-2">
-            {pwLoading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> Saving...</> : <><Lock size={15}/> Update Password</>}
+            {pwLoading
+              ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> Saving...</>
+              : <><Lock size={15}/> Update Password</>}
           </button>
         </div>
       )}
