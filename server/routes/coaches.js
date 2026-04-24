@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 const { isValidObjectId } = require('mongoose');
+const { uploadBuffer } = require('../services/cloudinaryService');
 const protect = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
 
@@ -27,18 +26,7 @@ const bcrypt = require('bcryptjs');
 const { secretaryChat } = require('../services/claudeService');
 const UserProfile = require('../models/UserProfile');
 
-// Multer setup for CV + photo uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(__dirname, '../uploads/coaches');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname.replace(/\s/g, '_')}`);
-  },
-});
-const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // ─── PUBLIC ROUTES ───────────────────────────────────────────────
 
@@ -81,8 +69,22 @@ router.post('/apply', upload.fields([{ name: 'photo', maxCount: 1 }, { name: 'cv
     if (existing) return res.status(400).json({ success: false, message: 'Application already submitted with this email' });
 
     const data = { ...req.body };
-    if (req.files?.photo) data.photo = `/uploads/coaches/${req.files.photo[0].filename}`;
-    if (req.files?.cv) data.cvFile = `/uploads/coaches/${req.files.cv[0].filename}`;
+    if (req.files?.photo) {
+      const result = await uploadBuffer(req.files.photo[0].buffer, {
+        folder: 'flixcoach/coaches',
+        resource_type: 'image',
+        public_id: `coach_photo_${Date.now()}`,
+      });
+      data.photo = result.secure_url;
+    }
+    if (req.files?.cv) {
+      const result = await uploadBuffer(req.files.cv[0].buffer, {
+        folder: 'flixcoach/cvs',
+        resource_type: 'raw',
+        public_id: `coach_cv_${Date.now()}`,
+      });
+      data.cvFile = result.secure_url;
+    }
     if (typeof data.specialties === 'string') data.specialties = data.specialties.split(',').map(s => s.trim());
     if (typeof data.certifications === 'string') data.certifications = data.certifications.split(',').map(s => s.trim());
     if (typeof data.languages === 'string') data.languages = data.languages.split(',').map(s => s.trim());

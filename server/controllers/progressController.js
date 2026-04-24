@@ -1,37 +1,30 @@
 const multer = require('multer');
-const path = require('path');
 const ProgressPhoto = require('../models/ProgressPhoto');
 const UserProfile = require('../models/UserProfile');
 const claude = require('../services/claudeService');
+const { uploadBuffer } = require('../services/cloudinaryService');
 
-// Multer storage config
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '../uploads')),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `progress_${req.user._id}_${Date.now()}${ext}`);
+exports.upload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (req, file, cb) => {
+    if (['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Only JPEG, PNG, and WebP images are allowed'), false);
   },
+  limits: { fileSize: 5 * 1024 * 1024 },
 });
-
-const fileFilter = (req, file, cb) => {
-  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-  if (allowed.includes(file.mimetype)) cb(null, true);
-  else cb(new Error('Only JPEG, PNG, and WebP images are allowed'), false);
-};
-
-exports.upload = multer({ storage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } });
 
 exports.uploadPhoto = async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No image uploaded' });
-    }
+    if (!req.file) return res.status(400).json({ success: false, message: 'No image uploaded' });
 
     const profile = await UserProfile.findOne({ user: req.user._id });
-    const now = new Date();
-    const imageUrl = `${process.env.SERVER_URL || 'http://localhost:5000'}/uploads/${req.file.filename}`;
 
-    // Generate AI analysis prompt
+    const result = await uploadBuffer(req.file.buffer, {
+      folder: 'flixcoach/progress',
+      resource_type: 'image',
+      public_id: `progress_${req.user._id}_${Date.now()}`,
+    });
+
     const analysisPrompt = await claude.chat(
       [{
         role: 'user',
@@ -60,12 +53,13 @@ Return ONLY the JSON.`,
       if (jsonMatch) analysis = JSON.parse(jsonMatch[0]);
     } catch (e) {}
 
+    const now = new Date();
     const photo = await ProgressPhoto.create({
       user: req.user._id,
       month: now.getMonth() + 1,
       year: now.getFullYear(),
-      imagePath: req.file.path,
-      imageUrl,
+      imagePath: result.public_id,
+      imageUrl: result.secure_url,
       analysis,
       analyzedAt: new Date(),
     });

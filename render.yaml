@@ -37,3 +37,9 @@ services:
         sync: false
       - key: STRIPE_ELITE_PRICE_ID
         sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        value: duhuozcvo
+      - key: CLOUDINARY_API_KEY
+        value: "635613865445141"
+      - key: CLOUDINARY_API_SECRET
+        sync: false
