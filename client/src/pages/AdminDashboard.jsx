@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 import { API_URL } from '../config';
 import api from '../services/api';
@@ -19,6 +20,7 @@ const PLAN_COLORS = {
 const PLAN_LABELS = { free: 'Free', pro: 'Pro €9.99', elite: 'Elite €24.99' };
 
 export default function AdminDashboard() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState('applications');
@@ -34,6 +36,7 @@ export default function AdminDashboard() {
   const [subCounts, setSubCounts] = useState({ free: 0, pro: 0, elite: 0 });
   const [subLoading, setSubLoading] = useState(false);
   const [changingPlan, setChangingPlan] = useState(null);
+  const [promotingUser, setPromotingUser] = useState(null);
 
   // Commission tab state
   const [commData, setCommData] = useState(null);
@@ -109,6 +112,16 @@ export default function AdminDashboard() {
     finally { setChangingPlan(null); }
   };
 
+  const handleRoleChange = async (userId, role) => {
+    setPromotingUser(userId);
+    try {
+      await api.patch(`/coaches/admin/users/${userId}/role`, { role });
+      setSubUsers(prev => prev.map(u => u._id === userId ? { ...u, role } : u));
+      toast.success(role === 'admin' ? '⭐ User promoted to Admin!' : 'User role set back to User');
+    } catch { toast.error('Failed to update role'); }
+    finally { setPromotingUser(null); }
+  };
+
   const handleRateUpdate = async (coachId) => {
     const rate = parseFloat(rateInput);
     if (isNaN(rate) || rate < 0 || rate > 100) { toast.error('Enter a valid rate (0-100)'); return; }
@@ -131,10 +144,10 @@ export default function AdminDashboard() {
   if (user?.role !== 'admin') return null;
 
   const TABS = [
-    { id: 'applications', label: 'Applications', icon: FileText },
-    { id: 'coaches',      label: 'Coaches',      icon: Users },
-    { id: 'subscriptions',label: 'Subscriptions',icon: CreditCard },
-    { id: 'commission',   label: 'Commission',   icon: Percent },
+    { id: 'applications', label: t('admin.applications'), icon: FileText },
+    { id: 'coaches',      label: t('admin.coaches'),      icon: Users },
+    { id: 'subscriptions',label: t('admin.subscriptions'),icon: CreditCard },
+    { id: 'commission',   label: t('admin.commission'),   icon: Percent },
   ];
 
   return (
@@ -145,8 +158,8 @@ export default function AdminDashboard() {
           <Shield size={20} className="text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-black">Admin Dashboard</h1>
-          <p className="text-gray-400 text-sm">Manage coaches, subscriptions & commissions</p>
+          <h1 className="text-2xl font-black">{t('admin.title')}</h1>
+          <p className="text-gray-400 text-sm">{t('admin.subtitle')}</p>
         </div>
       </div>
 
@@ -154,10 +167,10 @@ export default function AdminDashboard() {
       {stats && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Active Coaches', value: stats.totalCoaches, icon: Users, color: 'text-primary-400 bg-primary-900/30' },
-            { label: 'Pending Applications', value: stats.pendingApplications, icon: Clock, color: 'text-yellow-400 bg-yellow-900/30' },
-            { label: 'Total Bookings', value: stats.totalBookings, icon: Calendar, color: 'text-green-400 bg-green-900/30' },
-            { label: 'Active Clients', value: stats.activeClients, icon: BarChart3, color: 'text-purple-400 bg-purple-900/30' },
+            { label: t('admin.activeCoaches'), value: stats.totalCoaches, icon: Users, color: 'text-primary-400 bg-primary-900/30' },
+            { label: t('admin.pendingApplications'), value: stats.pendingApplications, icon: Clock, color: 'text-yellow-400 bg-yellow-900/30' },
+            { label: t('admin.totalBookings'), value: stats.totalBookings, icon: Calendar, color: 'text-green-400 bg-green-900/30' },
+            { label: t('admin.activeClients'), value: stats.activeClients, icon: BarChart3, color: 'text-purple-400 bg-purple-900/30' },
           ].map(({ label, value, icon: Icon, color }) => (
             <div key={label} className="glass-card p-4">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color} mb-3`}>
@@ -360,10 +373,15 @@ export default function AdminDashboard() {
                     ) : subUsers.map(u => (
                       <div key={u._id} className="flex items-center justify-between px-4 py-3 gap-4 flex-wrap">
                         <div>
-                          <p className="text-sm font-medium text-white">{u.name}</p>
+                          <p className="text-sm font-medium text-white flex items-center gap-2">
+                            {u.name}
+                            {u.role === 'admin' && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-900/40 text-yellow-400">Admin</span>
+                            )}
+                          </p>
                           <p className="text-xs text-gray-500">{u.email}</p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${PLAN_COLORS[u.subscription?.plan || 'free']}`}>
                             {PLAN_LABELS[u.subscription?.plan || 'free']}
                           </span>
@@ -379,6 +397,24 @@ export default function AdminDashboard() {
                             <option value="pro">Pro</option>
                             <option value="elite">Elite</option>
                           </select>
+                          {/* Promote / demote admin */}
+                          {u.role !== 'admin' ? (
+                            <button
+                              disabled={promotingUser === u._id}
+                              onClick={() => handleRoleChange(u._id, 'admin')}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-yellow-900/30 text-yellow-400 hover:bg-yellow-900/60 text-xs font-medium transition-colors disabled:opacity-50"
+                            >
+                              <Shield size={12} /> Make Admin
+                            </button>
+                          ) : (
+                            <button
+                              disabled={promotingUser === u._id}
+                              onClick={() => handleRoleChange(u._id, 'user')}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-900/30 text-red-400 hover:bg-red-900/60 text-xs font-medium transition-colors disabled:opacity-50"
+                            >
+                              <XCircle size={12} /> Remove Admin
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}

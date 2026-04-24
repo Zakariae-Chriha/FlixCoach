@@ -406,7 +406,7 @@ router.delete('/admin/coaches/:id', adminAuth, async (req, res) => {
 // GET /api/coaches/admin/subscriptions — all users with their plan
 router.get('/admin/subscriptions', adminAuth, async (req, res) => {
   try {
-    const users = await User.find({ role: { $in: ['user', 'coach'] } })
+    const users = await User.find({ role: { $in: ['user', 'coach', 'admin'] } })
       .select('name email role subscription createdAt')
       .sort({ createdAt: -1 });
     const counts = {
@@ -495,6 +495,25 @@ router.patch('/admin/commission/:coachId', adminAuth, async (req, res) => {
       { new: true }
     ).select('fullName commissionRate');
     res.json({ success: true, coach });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PATCH /api/coaches/admin/users/:userId/role — promote/demote user role
+router.patch('/admin/users/:userId/role', adminAuth, async (req, res) => {
+  try {
+    const { role } = req.body;
+    if (!['user', 'admin'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Role must be user or admin' });
+    }
+    const updated = await User.findByIdAndUpdate(
+      req.params.userId,
+      { role },
+      { new: true }
+    ).select('name email role');
+    if (!updated) return res.status(404).json({ success: false, message: 'User not found' });
+    res.json({ success: true, user: updated });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
