@@ -63,27 +63,27 @@ async function sessionReminders() {
     const bookings = await Booking.find({
       status: 'confirmed',
       date: { $gte: new Date().toISOString().split('T')[0] },
-    }).populate('user coach');
+    }).populate('client', 'name email').populate('coach', 'fullName');
 
     for (const b of bookings) {
-      if (!b.startTime) continue;
+      if (!b.startTime || !b.client) continue;
       const [h, m] = b.startTime.split(':').map(Number);
       const bookingTime = new Date(b.date);
       bookingTime.setHours(h, m, 0, 0);
 
       if (bookingTime >= in30 && bookingTime <= in31) {
-        const coachName = b.coach?.name || 'your coach';
+        const coachName = b.coach?.fullName || 'your coach';
 
-        await sendPushToUser(b.user._id, {
+        await sendPushToUser(b.client._id, {
           title: '⏰ Session in 30 minutes!',
           body: `Your session with ${coachName} starts at ${b.startTime}. Get ready!`,
           url: '/coaches',
         });
 
-        await sendEmail(b.user.email, '⏰ Your session starts in 30 minutes', `
+        await sendEmail(b.client.email, '⏰ Your session starts in 30 minutes', `
           <div style="font-family:sans-serif;max-width:500px;margin:0 auto;background:#0a0a0f;color:#fff;padding:30px;border-radius:16px;">
             <h2 style="color:#fb6027">Session starting soon!</h2>
-            <p style="color:#9ca3af">Your coaching session with <strong>${coachName}</strong> starts at <strong>${b.startTime}</strong> today.</p>
+            <p style="color:#9ca3af">Hey <strong>${b.client.name}</strong>, your coaching session with <strong>${coachName}</strong> starts at <strong>${b.startTime}</strong> today.</p>
             <a href="${process.env.CLIENT_URL}/coaches" style="display:inline-block;background:linear-gradient(135deg,#fb6027,#ec4899);color:#fff;padding:12px 24px;border-radius:12px;text-decoration:none;font-weight:bold;margin-top:16px;">View Session</a>
           </div>
         `);
