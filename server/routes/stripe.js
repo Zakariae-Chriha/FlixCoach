@@ -1,11 +1,40 @@
 const express = require('express');
 const router = express.Router();
 const protect = require('../middleware/auth');
+const nodemailer = require('nodemailer');
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? require('stripe')(process.env.STRIPE_SECRET_KEY)
   : null;
 const User = require('../models/User');
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+});
+
+async function sendUpgradeEmail(to, name, plan) {
+  const planLabel = plan === 'pro' ? 'Pro €9.99/mo' : 'Elite €24.99/mo';
+  const color = plan === 'pro' ? '#3b82f6' : '#f59e0b';
+  try {
+    await transporter.sendMail({
+      from: `"FlixCoach" <${process.env.EMAIL_USER}>`,
+      to,
+      subject: `🎉 Welcome to FlixCoach ${plan === 'pro' ? 'Pro' : 'Elite'}!`,
+      html: `
+        <div style="font-family:sans-serif;max-width:500px;margin:0 auto;background:#0a0a0f;color:#fff;padding:30px;border-radius:16px;">
+          <h2 style="color:${color}">🎉 Payment Confirmed!</h2>
+          <p style="color:#9ca3af">Hey <strong>${name}</strong>, your subscription to <strong>${planLabel}</strong> is now active.</p>
+          <p style="color:#9ca3af">You now have access to all premium features. Enjoy your training!</p>
+          <a href="${process.env.CLIENT_URL}/dashboard" style="display:inline-block;background:linear-gradient(135deg,#fb6027,#ec4899);color:#fff;padding:12px 24px;border-radius:12px;text-decoration:none;font-weight:bold;margin-top:16px;">Go to Dashboard</a>
+          <p style="color:#4b5563;font-size:12px;margin-top:20px">FlixCoach · AI-Powered Fitness</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('Upgrade email error:', err.message);
+  }
+}
 
 const PLANS = {
   pro: {
@@ -94,12 +123,13 @@ router.get('/verify-session', protect, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Unauthorized' });
     }
     const subscription = await stripe.subscriptions.retrieve(session.subscription);
-    await User.findByIdAndUpdate(userId, {
+    const updatedUser = await User.findByIdAndUpdate(userId, {
       'subscription.plan': plan,
       'subscription.status': 'active',
       'subscription.stripeSubscriptionId': subscription.id,
       'subscription.currentPeriodEnd': new Date(subscription.current_period_end * 1000),
-    });
+    }, { new: true }).select('name email');
+    await sendUpgradeEmail(updatedUser.email, updatedUser.name, plan);
     res.json({ success: true, plan });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
