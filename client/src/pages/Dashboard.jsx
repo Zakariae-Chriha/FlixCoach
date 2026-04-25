@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { coachAPI, logsAPI, trainingAPI } from '../services/api';
+import api, { coachAPI, logsAPI, trainingAPI } from '../services/api';
 import { toast } from 'react-hot-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
