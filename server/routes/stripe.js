@@ -123,11 +123,14 @@ router.get('/verify-session', protect, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Unauthorized' });
     }
     const subscription = await stripe.subscriptions.retrieve(session.subscription);
+    const periodEnd = subscription.current_period_end
+      ? new Date(subscription.current_period_end * 1000)
+      : null;
     const updatedUser = await User.findByIdAndUpdate(userId, {
       'subscription.plan': plan,
       'subscription.status': 'active',
       'subscription.stripeSubscriptionId': subscription.id,
-      'subscription.currentPeriodEnd': new Date(subscription.current_period_end * 1000),
+      ...(periodEnd && { 'subscription.currentPeriodEnd': periodEnd }),
     }, { new: true }).select('name email');
     await sendUpgradeEmail(updatedUser.email, updatedUser.name, plan);
     res.json({ success: true, plan });
@@ -171,11 +174,14 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         const session = event.data.object;
         const { userId, plan } = session.metadata;
         const subscription = await stripe.subscriptions.retrieve(session.subscription);
+        const periodEndWh = subscription.current_period_end
+          ? new Date(subscription.current_period_end * 1000)
+          : null;
         await User.findByIdAndUpdate(userId, {
           'subscription.plan': plan,
           'subscription.status': 'active',
           'subscription.stripeSubscriptionId': subscription.id,
-          'subscription.currentPeriodEnd': new Date(subscription.current_period_end * 1000),
+          ...(periodEndWh && { 'subscription.currentPeriodEnd': periodEndWh }),
         });
         break;
       }
