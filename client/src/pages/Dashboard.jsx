@@ -49,7 +49,14 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (searchParams.get('upgraded') === 'true') {
-      toast.success('Subscription activated! Welcome to your new plan!');
+      const sessionId = searchParams.get('session_id');
+      if (sessionId) {
+        api.get(`/stripe/verify-session?session_id=${sessionId}`)
+          .then(() => toast.success('🎉 Subscription activated! Welcome to your new plan!'))
+          .catch(() => toast.success('Payment received! Your plan will be updated shortly.'));
+      } else {
+        toast.success('🎉 Subscription activated!');
+      }
       setSearchParams({});
     }
     logsAPI.getToday().then((r) => { setLog(r.data.log); setWater(r.data.log?.waterIntake || 0); }).catch(() => {});

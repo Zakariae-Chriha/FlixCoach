@@ -67,7 +67,7 @@ router.post('/create-checkout', protect, async (req, res) => {
       payment_method_types: ['card'],
       mode: 'subscription',
       line_items: [{ price: planData.priceId, quantity: 1 }],
-      success_url: `${process.env.CLIENT_URL}/dashboard?upgraded=true`,
+      success_url: `${process.env.CLIENT_URL}/dashboard?upgraded=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.CLIENT_URL}/pricing`,
       metadata: { userId: user._id.toString(), plan },
     });
@@ -75,6 +75,33 @@ router.post('/create-checkout', protect, async (req, res) => {
     res.json({ success: true, url: session.url });
   } catch (err) {
     console.error('Stripe checkout error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* GET /api/stripe/verify-session — verify payment and update plan */
+router.get('/verify-session', protect, async (req, res) => {
+  if (!stripe) return res.status(503).json({ success: false, message: 'Payments not configured' });
+  const { session_id } = req.query;
+  if (!session_id) return res.status(400).json({ success: false, message: 'Missing session_id' });
+  try {
+    const session = await stripe.checkout.sessions.retrieve(session_id);
+    if (session.payment_status !== 'paid') {
+      return res.status(400).json({ success: false, message: 'Payment not completed' });
+    }
+    const { userId, plan } = session.metadata;
+    if (userId !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Unauthorized' });
+    }
+    const subscription = await stripe.subscriptions.retrieve(session.subscription);
+    await User.findByIdAndUpdate(userId, {
+      'subscription.plan': plan,
+      'subscription.status': 'active',
+      'subscription.stripeSubscriptionId': subscription.id,
+      'subscription.currentPeriodEnd': new Date(subscription.current_period_end * 1000),
+    });
+    res.json({ success: true, plan });
+  } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
